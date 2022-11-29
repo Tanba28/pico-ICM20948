@@ -1,8 +1,8 @@
-add_library(ICM20948 ICM20948.cpp)
+add_library(pico-ICM20948 ICM20948.cpp)
 
-target_link_libraries(ICM20948 pico_stdlib hardware_i2c)
+target_link_libraries(pico-ICM20948 pico_stdlib hardware_i2c)
 
-target_include_directories(ICM20948
+target_include_directories(pico-ICM20948
     PUBLIC ${PROJECT_SOURCE_DIR}/src
     )
 

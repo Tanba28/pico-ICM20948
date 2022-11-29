@@ -4,6 +4,9 @@
 #include "ICM20948.hpp"
 
 int main() {
+    Vector gyro;
+    Vector accel;
+
     stdio_init_all();
 
     const uint LED_R_PIN = 18;
@@ -15,17 +18,23 @@ int main() {
     gpio_set_dir(LED_G_PIN, GPIO_OUT);
     gpio_init(LED_B_PIN);
     gpio_set_dir(LED_B_PIN, GPIO_OUT);
+    gpio_put(LED_R_PIN,1);
+    gpio_put(LED_G_PIN,1);
+    gpio_put(LED_B_PIN,1);
 
     sleep_ms(1000);
 
-    ICM20948 icm = ICM20948(i2c1,2,3,400*1000);
+    ICM20948 icm = ICM20948(i2c1,2,3,100*1000);
     while (true) {
-        icm.isWhoAmI();
+        // icm.isWhoAmI();
+        icm.measurement();
+        gyro = icm.getGyro();
+        accel = icm.getAceel();
 
-        gpio_put(LED_R_PIN,1);
-        gpio_put(LED_G_PIN,1);
-        gpio_put(LED_B_PIN,1);
+        printf("%+f,%+f,%+f,%+f,%+f,%+f\n",accel.data[0],accel.data[1],accel.data[2],gyro.data[0],gyro.data[1],gyro.data[2]);
 
-        sleep_ms(1000);
+        gpio_put(LED_G_PIN,!gpio_get(LED_G_PIN));
+
+        // sleep_ms(1);
     }
 }
