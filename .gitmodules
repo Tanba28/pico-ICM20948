@@ -1,0 +1,6 @@
+[submodule "pico-I2C"]
+	path = pico-I2C
+	url = https://github.com/Tanba28/pico-I2C.git
+[submodule "pico-FreeRTOS"]
+	path = pico-FreeRTOS
+	url = https://github.com/Tanba28/pico-FreeRTOS.git

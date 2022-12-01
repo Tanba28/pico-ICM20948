@@ -4,9 +4,7 @@
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 
-struct Vector{
-    float data[3];
-};
+#include "pico_i2c.hpp"
 
 class ICM20948{
     public:
@@ -129,11 +127,12 @@ class ICM20948{
         };
 
         ICM20948(i2c_inst_t *_i2c,uint sda_pin,uint scl_pin ,uint baudrate);
+        ICM20948(PicoI2C *_i2c);
         bool isWhoAmI();
 
         void measurement();
-        Vector getGyro();
-        Vector getAceel();
+        void getGyro(float *buf);
+        void getAceel(float *buf);
 
         void bankChange(USER_BANK user_bank);
 
@@ -166,20 +165,24 @@ class ICM20948{
             ACCEL_DLPFCFG aceel_dlpgcfg = ACCEL_DLPFCFG::BAND_24HZ);
 
     private:
-        i2c_inst_t *i2c;
 
-        Vector gyro;
+        float gyro[3];
         uint16_t gyro_raw[3];
-        Vector accel;
+        float accel[3];
         uint16_t accel_raw[3];
 
         uint8_t accel_res;
         uint16_t gyro_res;
 
+        PicoI2C *i2c = NULL;
+
         uint8_t ICM_ADDRESS  = 0x68;
         
         void setAccelRes();
         void setGyroRes();
+
+        void i2c_write(uint8_t reg,const uint8_t *src,size_t len);
+        void i2c_read(uint8_t reg,uint8_t *dst,size_t len);
 
         enum BANK0_REG : uint8_t{
             WHO_AM_I = 0x00,

@@ -18,6 +18,8 @@ add_compile_options(
 add_subdirectory(./src)
 
 if(NOT DEFINED IS_ROOT_PROJECT)
-        add_subdirectory(./example)
         set(IS_ROOT_PROJECT true)
+        add_subdirectory(./example)
+        add_subdirectory(./pico-FreeRTOS)
+        add_subdirectory(./pico-I2C)
 endif()

@@ -1,14 +1,24 @@
 #include "ICM20948.hpp"
 
 #include "stdio.h"
+#include "string.h"
 #include "pico/stdlib.h"
 
-ICM20948::ICM20948(i2c_inst_t *_i2c,uint sda_pin,uint scl_pin ,uint baudrate):
-i2c(_i2c){
-    i2c_init(i2c, baudrate);
-    gpio_set_function(sda_pin, GPIO_FUNC_I2C);
-    gpio_set_function(scl_pin, GPIO_FUNC_I2C);
 
+ICM20948::ICM20948(i2c_inst_t *_i2c,uint sda_pin,uint scl_pin ,uint baudrate){
+    this->i2c = new PicoI2C(_i2c,sda_pin,scl_pin,baudrate);
+
+    pwrMgmt1Configuration();
+    pwrMgmt2Configuration();
+    intPinCfgConfiguration();
+    gyroConfig1Configuration();
+    gyroSamplingRateDiv();
+    accelConfig1Configuration();
+    accelSamplingRateDiv();
+}
+
+ICM20948::ICM20948(PicoI2C *_i2c):
+i2c(_i2c){
     pwrMgmt1Configuration();
     pwrMgmt2Configuration();
     intPinCfgConfiguration();
@@ -25,8 +35,10 @@ bool ICM20948::isWhoAmI(){
     bankChange(USER_BANK::BANK0);   
 
     var = BANK0_REG::WHO_AM_I;
-    i2c_write_blocking(i2c,ICM_ADDRESS,&var,1,true);
-    i2c_read_blocking(i2c,ICM_ADDRESS,&buf,1,false);
+
+    i2c_read(var,&buf,1);
+    // i2c_write_blocking(i2c,ICM_ADDRESS,&var,1,true);
+    // i2c_read_blocking(i2c,ICM_ADDRESS,&buf,1,false);
 
     printf("%x\n",buf);
 
@@ -43,8 +55,10 @@ void ICM20948::measurement(){
     bankChange(USER_BANK::BANK0);
 
     var = BANK0_REG::ACCEL_XOUT_H;
-    i2c_write_blocking(i2c,ICM_ADDRESS,&var,1,true);
-    i2c_read_blocking(i2c,ICM_ADDRESS,buf,14,false);
+
+    i2c_read(var,buf,14);
+    // i2c_write_blocking(i2c,ICM_ADDRESS,&var,1,true);
+    // i2c_read_blocking(i2c,ICM_ADDRESS,buf,14,false);
 
     accel_raw[0] = (uint16_t)buf[0] << 8 | buf[1];
     accel_raw[1] = (uint16_t)buf[2] << 8 | buf[3];
@@ -53,18 +67,22 @@ void ICM20948::measurement(){
     gyro_raw[1] = (uint16_t)buf[8] << 8 | buf[9];
     gyro_raw[2] = (uint16_t)buf[10] << 8 | buf[11];
 
-    accel.data[0] = ((int16_t)accel_raw[0] * accel_res) / 32768.0;
-    accel.data[1] = ((int16_t)accel_raw[1] * accel_res) / 32768.0;
-    accel.data[2] = ((int16_t)accel_raw[2] * accel_res) / 32768.0;
-    gyro.data[0] = ((int16_t)gyro_raw[0] * gyro_res) / 32768.0;
-    gyro.data[1] = ((int16_t)gyro_raw[1] * gyro_res) / 32768.0;
-    gyro.data[2] = ((int16_t)gyro_raw[2] * gyro_res) / 32768.0;
+    accel[0] = ((int16_t)accel_raw[0] * accel_res) / 32768.0;
+    accel[1] = ((int16_t)accel_raw[1] * accel_res) / 32768.0;
+    accel[2] = ((int16_t)accel_raw[2] * accel_res) / 32768.0;
+    gyro[0] = ((int16_t)gyro_raw[0] * gyro_res) / 32768.0;
+    gyro[1] = ((int16_t)gyro_raw[1] * gyro_res) / 32768.0;
+    gyro[2] = ((int16_t)gyro_raw[2] * gyro_res) / 32768.0;
 }
-Vector ICM20948::getGyro(){
-    return gyro;
+void ICM20948::getGyro(float *buf){
+    buf[0] = gyro[0];
+    buf[1] = gyro[1];
+    buf[2] = gyro[2];
 }
-Vector ICM20948::getAceel(){
-    return accel;
+void ICM20948::getAceel(float *buf){
+    buf[0] = accel[0];
+    buf[1] = accel[1];
+    buf[2] = accel[2];
 }
 
 void ICM20948::bankChange(USER_BANK user_bank){
@@ -76,7 +94,9 @@ void ICM20948::bankChange(USER_BANK user_bank){
 
     var[0] = BANK0_REG::REG_BANK_SEL_0;
     var[1] = this->reg_bank_sel.byte;
-    i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
+
+    i2c_write(var[0],&var[1],1);
+    // i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
 }
 
 void ICM20948::pwrMgmt1Configuration(CLKSEL clksel,TEMP_DIS temp_dis,LP_EN lp_en,SLEEP_IN sleep,DEVICE_RESET device_reset){
@@ -93,7 +113,9 @@ void ICM20948::pwrMgmt1Configuration(CLKSEL clksel,TEMP_DIS temp_dis,LP_EN lp_en
     
     var[0] = BANK0_REG::PWR_MGMT_1;
     var[1] = this->pwr_mgmt_1.byte;
-    i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
+
+    i2c_write(var[0],&var[1],1);
+    // i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
 }
 void ICM20948::pwrMgmt2Configuration(DISABLE_GYRO disable_gyro,DISABLE_ACCEL disable_accel){
     uint8_t var[2];
@@ -106,7 +128,9 @@ void ICM20948::pwrMgmt2Configuration(DISABLE_GYRO disable_gyro,DISABLE_ACCEL dis
 
     var[0] = BANK0_REG::PWR_MGMT_2;
     var[1] = this->pwr_mgmt_2.byte;
-    i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
+
+    i2c_write(var[0],&var[1],1);
+    // i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
 }
 
 void ICM20948::intPinCfgConfiguration(BYPASS_EN bypass_em,FSYNC_INT_MODE_EN fsync_int_mode_en,ACTL_FSYNC actl_fsyc,INT_ANYRD_2CLEAR int_anyrd_2clear,INT1_LATCH_EN int1_latch_en,INT1_OPEN int1_open,INT1_ACTL int1_actl){
@@ -125,7 +149,9 @@ void ICM20948::intPinCfgConfiguration(BYPASS_EN bypass_em,FSYNC_INT_MODE_EN fsyn
 
     var[0] = BANK0_REG::INT_PIN_CFG;
     var[1] = this->int_pin_cfg.byte;
-    i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
+
+    i2c_write(var[0],&var[1],1);
+    // i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
 }
 void ICM20948::gyroSamplingRateDiv(uint8_t div){
     uint8_t var[2];
@@ -134,7 +160,9 @@ void ICM20948::gyroSamplingRateDiv(uint8_t div){
 
     var[0] = BANK2_REG::GYRO_SMPLRT_DIV;
     var[1] = div;
-    i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
+
+    i2c_write(var[0],&var[1],1);
+    // i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
 }
 void ICM20948::gyroConfig1Configuration(GYRO_FCHOICE gyro_fchoice,GYRO_FS_SEL gyro_fs_sel,GYRO_DLPFCFG gyro_dlpgcfg){
     uint8_t var[2];
@@ -148,7 +176,9 @@ void ICM20948::gyroConfig1Configuration(GYRO_FCHOICE gyro_fchoice,GYRO_FS_SEL gy
 
     var[0] = BANK2_REG::GYRO_CONFIG_1;
     var[1] = this->gyro_config_1.byte;
-    i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
+
+    i2c_write(var[0],&var[1],1);
+    // i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
 
     setGyroRes();
 }
@@ -159,7 +189,9 @@ void ICM20948::accelSamplingRateDiv(uint8_t div){
 
     var[0] = BANK2_REG::ACCEL_SMPLRT_DIV_2;
     var[1] = div;
-    i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
+
+    i2c_write(var[0],&var[1],1);
+    // i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
 }
 void ICM20948::accelConfig1Configuration(ACCEL_FCHOICE aceel_fchoice,ACCEL_FS_SEL aceel_fs_sel,ACCEL_DLPFCFG aceel_dlpgcfg){
     uint8_t var[2];
@@ -173,7 +205,9 @@ void ICM20948::accelConfig1Configuration(ACCEL_FCHOICE aceel_fchoice,ACCEL_FS_SE
 
     var[0] = BANK2_REG::ACCEL_CONFIG;
     var[1] = this->accel_config.byte;
-    i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
+
+    i2c_write(var[0],&var[1],1);
+    // i2c_write_blocking(i2c,ICM_ADDRESS,var,2,false);
 
     setAccelRes();
 }
@@ -211,4 +245,11 @@ void ICM20948::setGyroRes(){
         this->gyro_res = 2000;
         break;
     }
+}
+
+void ICM20948::i2c_write(uint8_t reg,const uint8_t *src,size_t len){
+    i2c->write(ICM_ADDRESS,reg,src,len);
+}
+void ICM20948::i2c_read(uint8_t reg,uint8_t *dst,size_t len){
+    i2c->read(ICM_ADDRESS,reg,dst,len);
 }
